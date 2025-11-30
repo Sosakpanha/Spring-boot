@@ -3,6 +3,7 @@ package com.example.usermanagement.controller;
 import com.example.usermanagement.dto.UserRequestDTO;
 import com.example.usermanagement.dto.UserResponseDTO;
 import com.example.usermanagement.entity.User;
+import com.example.usermanagement.mapper.UserMapper;
 import com.example.usermanagement.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,6 +20,7 @@ import java.util.List;
 
 /**
  * REST Controller handling HTTP requests for User operations.
+ * Uses MapStruct for Entity <-> DTO mapping.
  */
 @RestController
 @RequestMapping("/api/users")
@@ -27,6 +29,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final UserMapper userMapper;
 
     @Operation(summary = "Create a new user", description = "Creates a new user with the provided details")
     @ApiResponses(value = {
@@ -35,9 +38,9 @@ public class UserController {
     })
     @PostMapping
     public ResponseEntity<UserResponseDTO> createUser(@Valid @RequestBody UserRequestDTO userRequestDTO) {
-        User user = mapToEntity(userRequestDTO);
+        User user = userMapper.toEntity(userRequestDTO);
         User createdUser = userService.createUser(user);
-        return new ResponseEntity<>(mapToResponseDTO(createdUser), HttpStatus.CREATED);
+        return new ResponseEntity<>(userMapper.toResponseDTO(createdUser), HttpStatus.CREATED);
     }
 
     @Operation(summary = "Get all users", description = "Retrieves a list of all users")
@@ -45,10 +48,7 @@ public class UserController {
     @GetMapping
     public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         List<User> users = userService.getAllUsers();
-        List<UserResponseDTO> userDTOs = users.stream()
-                .map(this::mapToResponseDTO)
-                .toList();
-        return ResponseEntity.ok(userDTOs);
+        return ResponseEntity.ok(userMapper.toResponseDTOList(users));
     }
 
     @Operation(summary = "Get user by ID", description = "Retrieves a specific user by their ID")
@@ -60,7 +60,7 @@ public class UserController {
     public ResponseEntity<UserResponseDTO> getUserById(
             @Parameter(description = "User ID", required = true) @PathVariable Long id) {
         User user = userService.getUserById(id);
-        return ResponseEntity.ok(mapToResponseDTO(user));
+        return ResponseEntity.ok(userMapper.toResponseDTO(user));
     }
 
     @Operation(summary = "Update user", description = "Updates an existing user's details")
@@ -73,9 +73,9 @@ public class UserController {
     public ResponseEntity<UserResponseDTO> updateUser(
             @Parameter(description = "User ID", required = true) @PathVariable Long id,
             @Valid @RequestBody UserRequestDTO userRequestDTO) {
-        User user = mapToEntity(userRequestDTO);
+        User user = userMapper.toEntity(userRequestDTO);
         User updatedUser = userService.updateUser(id, user);
-        return ResponseEntity.ok(mapToResponseDTO(updatedUser));
+        return ResponseEntity.ok(userMapper.toResponseDTO(updatedUser));
     }
 
     @Operation(summary = "Delete user", description = "Deletes a user by their ID")
@@ -88,24 +88,5 @@ public class UserController {
             @Parameter(description = "User ID", required = true) @PathVariable Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
-    }
-
-    private User mapToEntity(UserRequestDTO dto) {
-        return User.builder()
-                .firstName(dto.getFirstName())
-                .lastName(dto.getLastName())
-                .email(dto.getEmail())
-                .build();
-    }
-
-    private UserResponseDTO mapToResponseDTO(User user) {
-        return UserResponseDTO.builder()
-                .id(user.getId())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .email(user.getEmail())
-                .createdAt(user.getCreatedAt())
-                .updatedAt(user.getUpdatedAt())
-                .build();
     }
 }
