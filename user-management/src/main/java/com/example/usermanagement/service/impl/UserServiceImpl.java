@@ -1,7 +1,8 @@
 package com.example.usermanagement.service.impl;
 
 import com.example.usermanagement.entity.User;
-import com.example.usermanagement.exception.ResourceNotFoundException;
+import com.example.usermanagement.exception.UserNotFoundException;
+import com.example.usermanagement.exception.ValidationException;
 import com.example.usermanagement.repository.UserRepository;
 import com.example.usermanagement.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -13,9 +14,9 @@ import java.util.List;
 /**
  * Implementation of UserService containing business logic.
  *
- * @Service: Marks this as a Spring service component (bean)
- * @RequiredArgsConstructor: Lombok generates constructor for final fields (dependency injection)
- * @Transactional: Ensures database operations are wrapped in transactions
+ * Uses custom exceptions:
+ * - UserNotFoundException: When user is not found (404)
+ * - ValidationException: For business validation errors (400)
  */
 @Service
 @RequiredArgsConstructor
@@ -28,7 +29,7 @@ public class UserServiceImpl implements UserService {
     public User createUser(User user) {
         // Check if email already exists
         if (userRepository.existsByEmail(user.getEmail())) {
-            throw new IllegalArgumentException("Email already exists: " + user.getEmail());
+            throw new ValidationException("email", "Email already exists: " + user.getEmail());
         }
         return userRepository.save(user);
     }
@@ -37,7 +38,7 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public User getUserById(Long id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+                .orElseThrow(() -> new UserNotFoundException(id));
     }
 
     @Override
@@ -53,7 +54,7 @@ public class UserServiceImpl implements UserService {
         // Check if new email conflicts with another user
         if (!existingUser.getEmail().equals(userDetails.getEmail())
                 && userRepository.existsByEmail(userDetails.getEmail())) {
-            throw new IllegalArgumentException("Email already exists: " + userDetails.getEmail());
+            throw new ValidationException("email", "Email already exists: " + userDetails.getEmail());
         }
 
         existingUser.setFirstName(userDetails.getFirstName());

@@ -1,5 +1,7 @@
 package com.example.usermanagement.exception;
 
+import com.example.usermanagement.dto.ErrorResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -12,25 +14,66 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Global exception handler for the entire application.
+ * Global exception handler using @ControllerAdvice.
  *
- * @RestControllerAdvice: Applies to all controllers, handles exceptions globally.
- *
- * Benefits of centralized exception handling:
- * - Consistent error response format across all endpoints
- * - Single place to manage error handling logic
- * - Cleaner controller code (no try-catch blocks)
+ * Handles all exceptions and returns consistent ErrorResponse format.
+ * Each handler creates a standardized error response with:
+ * - timestamp: When the error occurred
+ * - status: HTTP status code
+ * - error: Error type description
+ * - message: Detailed error message
+ * - path: API endpoint that caused the error
+ * - fieldErrors: Field-level validation errors (when applicable)
  */
 @RestControllerAdvice(basePackages = "com.example.usermanagement.controller")
 public class GlobalExceptionHandler {
 
     /**
-     * Handle validation errors (e.g., @NotBlank, @Email violations).
-     * Returns detailed field-level error messages.
+     * Handle UserNotFoundException.
+     * Returns HTTP 404 Not Found.
+     */
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleUserNotFoundException(
+            UserNotFoundException ex, HttpServletRequest request) {
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Not Found")
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    }
+
+    /**
+     * Handle ValidationException (business validation errors).
+     * Returns HTTP 400 Bad Request.
+     */
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(
+            ValidationException ex, HttpServletRequest request) {
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Validation Error")
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .fieldErrors(ex.hasErrors() ? ex.getErrors() : null)
+                .build();
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Handle @Valid annotation validation errors.
+     * Returns HTTP 400 Bad Request with field-level errors.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidationExceptions(
-            MethodArgumentNotValidException ex) {
+    public ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(
+            MethodArgumentNotValidException ex, HttpServletRequest request) {
 
         Map<String, String> fieldErrors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
@@ -39,59 +82,72 @@ public class GlobalExceptionHandler {
             fieldErrors.put(fieldName, errorMessage);
         });
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Validation Failed");
-        response.put("errors", fieldErrors);
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Validation Failed")
+                .message("One or more fields have validation errors")
+                .path(request.getRequestURI())
+                .fieldErrors(fieldErrors)
+                .build();
 
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
     /**
-     * Handle ResourceNotFoundException (e.g., user not found).
+     * Handle ResourceNotFoundException (legacy support).
+     * Returns HTTP 404 Not Found.
      */
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleResourceNotFoundException(
-            ResourceNotFoundException ex) {
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
+            ResourceNotFoundException ex, HttpServletRequest request) {
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.NOT_FOUND.value());
-        response.put("error", "Not Found");
-        response.put("message", ex.getMessage());
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Not Found")
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
 
-        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
 
     /**
-     * Handle IllegalArgumentException (e.g., duplicate email).
+     * Handle IllegalArgumentException.
+     * Returns HTTP 400 Bad Request.
      */
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(
-            IllegalArgumentException ex) {
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
+            IllegalArgumentException ex, HttpServletRequest request) {
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Bad Request");
-        response.put("message", ex.getMessage());
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
 
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
     /**
      * Handle all other unhandled exceptions.
+     * Returns HTTP 500 Internal Server Error.
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGlobalException(Exception ex) {
+    public ResponseEntity<ErrorResponse> handleGlobalException(
+            Exception ex, HttpServletRequest request) {
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        response.put("error", "Internal Server Error");
-        response.put("message", "An unexpected error occurred");
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .error("Internal Server Error")
+                .message("An unexpected error occurred")
+                .path(request.getRequestURI())
+                .build();
 
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
