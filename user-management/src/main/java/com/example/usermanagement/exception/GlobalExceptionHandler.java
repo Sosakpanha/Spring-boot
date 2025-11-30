@@ -21,7 +21,7 @@ import java.util.Map;
  * - Single place to manage error handling logic
  * - Cleaner controller code (no try-catch blocks)
  */
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.example.usermanagement.controller")
 public class GlobalExceptionHandler {
 
     /**
