@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # MySQL Database Service
+  mysql:
+    image: mysql:8.0
+    container_name: user_management_mysql
+    restart: unless-stopped
+    environment:
+      # Root password (change in production!)
+      MYSQL_ROOT_PASSWORD: rootpassword
+      # Database to create on startup
+      MYSQL_DATABASE: user_management_db
+      # Application user credentials
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      # Map container port 3306 to host port 3306
+      - "3306:3306"
+    volumes:
+      # Persist data even when container is removed
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data:
+    driver: local
