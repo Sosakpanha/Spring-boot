@@ -1,6 +1,9 @@
 package com.example.usermanagement.presentation.advice;
 
 import com.example.usermanagement.application.dto.common.ErrorResponse;
+import com.example.usermanagement.domain.exception.ResourceNotFoundException;
+import com.example.usermanagement.domain.exception.UserNotFoundException;
+import com.example.usermanagement.domain.exception.ValidationException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
